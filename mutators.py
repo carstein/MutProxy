@@ -17,7 +17,7 @@ class MutatorFrame:
         self.match = match
     
     def check_match(self,req):
-        if match != "":
+        if self.match != "":
             m=re.search(self.match,req)
             if m and m.group(0):
                 return True
@@ -28,7 +28,7 @@ class MutatorFrame:
     
     def mutate(self, data=""):
         return date
-        
+
 class SimpleMutator(MutatorFrame):
     payload=[]
     gen = None
@@ -59,3 +59,11 @@ class OverflowMutator(MutatorFrame):
     def mutate(self, data=""):
         self.mul*=2
         return "A"*self.mul
+
+class ReverseMutator(MutatorFrame):
+    def __init__(self):
+        pass
+
+    def mutate(self, data=""):
+        d = data.strip()
+        return d[::-1]+"\n"

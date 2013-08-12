@@ -17,16 +17,15 @@ MATCH_REQUEST=2
 
         
 class EndpointSocket(asyncore.dispatcher):
-    destination = None
-    active_mutator=0
-    mutator_req=[]
-    mutator_rsp=[]
-    
     def __init__(self, conn=None):
         self._outbuf = []
+        self.mutator_req=[]
+        self.mutator_rsp=[]
+        self.destination = None
+
         asyncore.dispatcher.__init__(self, conn)
         self.logger = Logger(str(int(time.time()))) #TODO(carstein): come up with better name
-             
+
     def set_dst(self, dst):
         """Set the destination for a socket"""
         self.destination = dst
@@ -50,29 +49,27 @@ class EndpointSocket(asyncore.dispatcher):
    ##### Handle events #####   
     def handle_read(self):
         data = self.recv(BUFFER_SIZE)
+
         if data:
             self.logger.log("Read: %s\n"%data.strip())
-            
-            if self.active_mutator: 
-                # mutations takes place here
-                data=self.active_mutator.mutate()
-                self.active_mutator=None
-                
+
             for mut in self.mutator_rsp:
                 if mut.check_match(data):
                     data = mut.mutate(data)
-            
+
             self.destination.write(data)
 
     def handle_write(self):
         buf = self._outbuf
+
         while buf:
             data = buf.pop(0)
+
             if data:
                 # mutator logic
                 for mut in self.mutator_req:
                     if mut.check_match(data):
-                        self.active_mutator=mut
+                        data = mut.mutate(data)
                 
                 sent = self.send(data)
                 
@@ -81,7 +78,7 @@ class EndpointSocket(asyncore.dispatcher):
                     break
                 
     def handle_connect(self):
-        self.destination.write('')
+        pass
        
     def handle_close (self):
         print "Closing endpoint socket"
@@ -126,9 +123,9 @@ class ProxyServer(asyncore.dispatcher):
             # Register mutator
             for entry in setup:
                 mutator = entry["mutator"]
-                if entry.haskey("match"): mutator.set_match(entry["match"])
+                if entry.has_key("match"): mutator.set_match(entry["match"])
 
-                ep2.register_mutator(mutator, entry.endpoint)
+                ep2.register_mutator(mutator, entry["endpoint"])
 
             # Fire up proxy
             ep2.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -148,12 +145,11 @@ def print_help():
 
 
 def main():
-
     short_options = "hl:d:"
     long_options = ['help','listen=','destination=']
 
     try:
-        opt,args=getopt.getopt(sys.argv[1:],short_options,long_options)
+        opt,args=getopt.getopt(sys.argv[1:], short_options, long_options)
     except:
         print_help()
 
@@ -170,7 +166,9 @@ def main():
     try:
         asyncore.loop()
     except KeyboardInterrupt:
-        print('Proxy closed.\n')
+        print('Proxy closed.')
+    finally:
+        server.close()
         return 0
     
 if __name__ == "__main__":
