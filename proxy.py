@@ -18,9 +18,9 @@ MATCH_REQUEST=2
         
 class EndpointSocket(asyncore.dispatcher):
     destination = None
-    active_injector=0
-    injectors_req=[]
-    injectors_rsp=[]
+    active_mutator=0
+    mutator_req=[]
+    mutator_rsp=[]
     
     def __init__(self, conn=None):
         self._outbuf = []
@@ -38,12 +38,12 @@ class EndpointSocket(asyncore.dispatcher):
             self.logger.log("Send: %s\n"%data.strip())
             self.handle_write()    
             
-    def register_injector(self,injector, endpoint):
-        """Register injector class to modify traffic"""
+    def register_mutator(self, mutator, endpoint):
+        """Register mutator class to modify traffic"""
         if endpoint == MATCH_REQUEST:
-            self.injectors_req.append(injector)
+            self.mutator_req.append(mutator)
         elif endpoint == MATCH_RESPONSE:
-            self.injectors_rsp.append(injector)
+            self.mutator_rsp.append(mutator)
         else:
             return False
             
@@ -53,14 +53,14 @@ class EndpointSocket(asyncore.dispatcher):
         if data:
             self.logger.log("Read: %s\n"%data.strip())
             
-            if self.active_injector: 
-                # injection takes place here
-                data=self.active_injector.inject()
-                self.active_injector=None
+            if self.active_mutator: 
+                # mutations takes place here
+                data=self.active_mutator.mutate()
+                self.active_mutator=None
                 
-            for inj in self.injectors_rsp:
-                if inj.check_match(data):
-                    data = inj.inject(data)
+            for mut in self.mutator_rsp:
+                if mut.check_match(data):
+                    data = mut.mutate(data)
             
             self.destination.write(data)
 
@@ -69,12 +69,13 @@ class EndpointSocket(asyncore.dispatcher):
         while buf:
             data = buf.pop(0)
             if data:
-                #injector logic
-                for inj in self.injectors_req:
-                    if inj.check_match(data):
-                        self.active_injector=inj
+                # mutator logic
+                for mut in self.mutator_req:
+                    if mut.check_match(data):
+                        self.active_mutator=mut
                 
                 sent = self.send(data)
+                
                 if sent < len(data):
                     buf.insert(0, data[sent:])
                     break
@@ -122,12 +123,12 @@ class ProxyServer(asyncore.dispatcher):
             ep1.set_dst(ep2)
             ep2.set_dst(ep1)
 
-            # Register injectors
+            # Register mutator
             for entry in setup:
-                injector = entry["injector"]
-                if entry.haskey("match"): injector.set_match(entry["match"])
+                mutator = entry["mutator"]
+                if entry.haskey("match"): mutator.set_match(entry["match"])
 
-                ep2.register_injector(injector, entry.endpoint)
+                ep2.register_mutator(mutator, entry.endpoint)
 
             # Fire up proxy
             ep2.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -138,7 +139,7 @@ class ProxyServer(asyncore.dispatcher):
             
 def print_help():
     print(
-    """Usage: ./proxy.py -l lhost:lport  -d dhost:dport -i injector [-h] 
+    """Usage: ./proxy.py -l lhost:lport  -d dhost:dport [-h] 
     -h                  - print this help 
     -l lhost:lport      - listen on this host and port
     -d dsthost:dport    - destination host and port"""

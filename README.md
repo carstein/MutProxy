@@ -1,11 +1,20 @@
-Mutagen
+MutProxy
 =======
 
+Description
+-----------
 Proxy with ability to mutate packets on the fly
 
 
-Usage:
+Usage
+-----
+How to use MutProxy
 
-Injectors:
+Mutagen
+-------
+How to mutate traffic
 
-Loggers:
+
+Loggers
+-------
+How to log traffic

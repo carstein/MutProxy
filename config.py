@@ -1,15 +1,15 @@
-import injectors
+import mutators
 
 MATCH_RESPONSE=1
 MATCH_REQUEST=2
 
-## Available injectors
-# Simple Injector - blabla
-# Swap Injector - blabla
-# Overflow Injector - blabla
+## Available mutators
+# Simple Mutator - blabla
+# Swap Mutator - blabla
+# Overflow Mutator - blabla
 
 setup = [
-  {"injector": injectors.OverflowInjector(), "match": "erostream", "endpoint": MATCH_REQUEST},
-  {"injector": injectors.SwapInjector(), "match": "unknown", "endpoint": MATCH_REQUEST},
-  {"injector": injectors.SimpleInjector(), "endpoint": MATCH_REQUEST},
+  {"mutator": mutators.OverflowMutator(), "match": "erostream", "endpoint": MATCH_REQUEST},
+  {"mutator": mutators.SwapMutator(), "match": "unknown", "endpoint": MATCH_REQUEST},
+  {"mutator": mutators.SimpleMutator(), "endpoint": MATCH_REQUEST},
 ]
