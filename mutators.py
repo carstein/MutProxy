@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
+# MutProxy - set of different mutators
+# Michal Melewski <michal.melewski@gmail.com>
+
 import re
 import itertools
 

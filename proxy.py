@@ -4,7 +4,6 @@
 import sys
 import asyncore
 import socket
-import time
 import getopt
 
 from logger import *
@@ -24,7 +23,10 @@ class EndpointSocket(asyncore.dispatcher):
         self.destination = None
 
         asyncore.dispatcher.__init__(self, conn)
-        self.logger = Logger(str(int(time.time()))) #TODO(carstein): come up with better name
+        self.logger = None
+
+    def set_logger(self, logger):
+        self.logger = logger
 
     def set_dst(self, dst):
         """Set the destination for a socket"""
@@ -34,7 +36,6 @@ class EndpointSocket(asyncore.dispatcher):
         """Write data to the socket"""
         if data:
             self._outbuf.append(data)
-            self.logger.log("Send: %s\n"%data.strip())
             self.handle_write()    
             
     def register_mutator(self, mutator, endpoint):
@@ -51,11 +52,13 @@ class EndpointSocket(asyncore.dispatcher):
         data = self.recv(BUFFER_SIZE)
 
         if data:
-            self.logger.log("Read: %s\n"%data.strip())
+            if self.logger: self.logger.log(data,"<-")
 
             for mut in self.mutator_rsp:
                 if mut.check_match(data):
                     data = mut.mutate(data)
+
+            if self.logger: self.logger.log(data,"<m")
 
             self.destination.write(data)
 
@@ -66,25 +69,31 @@ class EndpointSocket(asyncore.dispatcher):
             data = buf.pop(0)
 
             if data:
+                if self.logger: self.logger.log(data, "->")
+                
                 # mutator logic
                 for mut in self.mutator_req:
                     if mut.check_match(data):
                         data = mut.mutate(data)
-                
+
+                if self.logger: self.logger.log(data, "m>")
                 sent = self.send(data)
                 
                 if sent < len(data):
                     buf.insert(0, data[sent:])
                     break
-                
+
     def handle_connect(self):
-        pass
-       
-    def handle_close (self):
+        src,sport = self.getsockname()
+        dst,dport = self.getpeername()
+        log_name = "%s:%d->%s:%d"%(src, sport, dst, dport)
+        self.logger.setup(log_name)
+
+    def handle_close(self):
         print "Closing endpoint socket"
         self.destination.close()
         self.destination = None
-        self.logger.close()
+        if self.logger: self.logger.close()
         self.close()
 
 class ProxyServer(asyncore.dispatcher):
@@ -110,8 +119,6 @@ class ProxyServer(asyncore.dispatcher):
             conn, addr = pair
             conn.setblocking(0)
             
-            print "Accepting connection from %s"%str(addr)
-            
             # Create endpoint sockets
             ep1 = EndpointSocket() #Socket from client to proxy
             ep2 = EndpointSocket() #Socket from proxy to final destination
@@ -119,13 +126,16 @@ class ProxyServer(asyncore.dispatcher):
             # Set destinations
             ep1.set_dst(ep2)
             ep2.set_dst(ep1)
-
-            # Register mutator
+            
+            # Register mutator and logger
             for entry in setup:
-                mutator = entry["mutator"]
-                if entry.has_key("match"): mutator.set_match(entry["match"])
+                if entry["target"] == self.dst:
+                    ep2.set_logger(entry["logger"])
+                    mutator = entry["mutator"]
+                    if entry.has_key("match"): mutator.set_match(entry["match"])
 
-                ep2.register_mutator(mutator, entry["endpoint"])
+                    ep2.register_mutator(mutator, entry["endpoint"])
+                    break
 
             # Fire up proxy
             ep2.create_socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,4 +1,5 @@
 import mutators
+import logger
 
 MATCH_RESPONSE=1
 MATCH_REQUEST=2
@@ -15,5 +16,5 @@ MATCH_REQUEST=2
 #]
 
 setup = [
-	 {"mutator": mutators.ReverseMutator(), "endpoint": MATCH_RESPONSE}
+	 {"target": ("127.0.0.1", 8888), "mutator": mutators.ReverseMutator(), "endpoint": MATCH_REQUEST, "logger": logger.BinaryLogger()}
 ]
